@@ -310,6 +310,40 @@ export default function Home() {
     }
   };
 
+  // ─── Copy to Clipboard ───
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyPlan = useCallback(() => {
+    const locationTitle = locationType === "custom" ? customLocation : location?.title;
+    const dishTitle = dishType === "custom" ? customDish : dishes?.title;
+    const dateTimeStr = date && time ? `${formatDate(date)} at ${formatTime(time)}` : "";
+
+    const planText = [
+      "💝 Date Plan 💝",
+      "",
+      `📍 Location: ${locationTitle}`,
+      `🕐 Date & Time: ${dateTimeStr}`,
+      `🍽️ Dishes: ${dishTitle}`,
+      "",
+      "made with ♥ just for you",
+    ].join("\n");
+
+    navigator.clipboard.writeText(planText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // Fallback for older browsers
+      const textarea = document.createElement("textarea");
+      textarea.value = planText;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [location, locationType, customLocation, dishes, dishType, customDish, date, time]);
+
   // ─── Derived ───
   const locationReady = locationType === "custom" ? customLocation.trim() !== "" : location !== null;
   const datetimeReady = date !== "" && time !== "";
@@ -348,7 +382,7 @@ export default function Home() {
                         {isDone ? "✓" : s.number}
                       </div>
                       <span
-                        className={`mt-1 text-[10px] font-medium whitespace-nowrap ${
+                        className={`mt-1 text-[10px] font-medium whitespace-nowrap hidden sm:inline ${
                           isActive ? "text-rose-500" : "text-rose-300"
                         }`}
                       >
@@ -437,7 +471,7 @@ export default function Home() {
 
               {/* Floating decorative emojis */}
               <motion.div
-                className="mt-5 flex justify-center gap-3 text-2xl"
+                className="mt-5 flex justify-center gap-2 text-xl sm:gap-3 sm:text-2xl"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 1.2, duration: 0.6 }}
@@ -445,6 +479,7 @@ export default function Home() {
                 {["🌸", "✨", "💖", "🌙", "⭐", "🌹"].map((emoji, i) => (
                   <motion.span
                     key={emoji}
+                    className={i >= 4 ? "hidden sm:inline-block" : ""}
                     animate={{ y: [0, -8, 0], rotate: [0, i % 2 === 0 ? 8 : -8, 0] }}
                     transition={{
                       duration: 2 + i * 0.3,
@@ -608,7 +643,7 @@ export default function Home() {
                       setLocation(loc);
                       setLocationType("preset");
                     }}
-                    className={`group relative w-full rounded-2xl border-2 p-4 text-left shadow-sm transition-all duration-200 sm:p-5 ${
+                    className={`group relative w-full rounded-2xl border-2 p-4 text-left shadow-sm transition-all duration-200 sm:p-5 min-h-[72px] sm:min-h-0 ${
                       locationType === "preset" && location?.id === loc.id
                         ? "border-rose-400 bg-rose-50 shadow-md shadow-rose-200/50"
                         : "border-rose-100/60 bg-white/70 hover:border-rose-200 hover:bg-rose-50/50 hover:shadow-md"
@@ -1074,12 +1109,33 @@ export default function Home() {
                 )}
               </AnimatePresence>
 
-              {/* Confirm Button */}
-              <motion.div className="text-center" variants={fadeUp} custom={1}>
+              {/* Confirm & Copy Buttons */}
+              <motion.div className="space-y-3 text-center" variants={fadeUp} custom={1}>
+                {/* Copy to Clipboard */}
+                <motion.button
+                  onClick={handleCopyPlan}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-rose-200 bg-white/80 px-6 py-3 text-sm font-semibold text-rose-500 shadow-sm transition-all hover:border-rose-300 hover:bg-rose-50 active:scale-95"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  {copied ? (
+                    <>
+                      <span className="text-base">✅</span>
+                      Copied to clipboard!
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-base">📋</span>
+                      Copy Plan
+                    </>
+                  )}
+                </motion.button>
+
+                {/* Confirm Button */}
                 <motion.button
                   onClick={handleConfirm}
                   disabled={loading}
-                  className={`inline-flex items-center gap-2 rounded-2xl px-8 py-4 text-lg font-semibold shadow-lg transition-all duration-200 sm:px-10 sm:py-4 sm:text-xl ${
+                  className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl px-8 py-4 text-lg font-semibold shadow-lg transition-all duration-200 sm:px-10 sm:py-4 sm:text-xl ${
                     !loading
                       ? "bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 text-white shadow-rose-300/50 hover:shadow-xl hover:shadow-rose-300/60 active:scale-95"
                       : "cursor-not-allowed bg-rose-200/60 text-rose-400"
@@ -1118,19 +1174,29 @@ export default function Home() {
 
                 <motion.button
                   onClick={goBack}
-                  className="mt-4 block w-full text-center text-sm font-medium text-rose-400 transition-colors hover:text-rose-500"
+                  className="block w-full text-center text-sm font-medium text-rose-400 transition-colors hover:text-rose-500"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
                   ← Go back
                 </motion.button>
+
+                {/* Made just for you */}
+                <motion.p
+                  className="pt-4 text-center text-xs text-rose-300/60"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  made with <span className="text-rose-400">♥</span> just for you
+                </motion.p>
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* ─── Footer ─── */}
-        {agreed && step < 4 && (
+        {agreed && step >= 1 && step <= 3 && (
           <motion.p
             className="mt-12 text-center text-xs text-rose-300/60"
             initial={{ opacity: 0 }}
@@ -1238,7 +1304,7 @@ function RomanticTimePicker({ value, onChange }) {
               key={h}
               type="button"
               onClick={() => setHour(h)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-semibold transition-all"
+              className="flex h-11 w-11 items-center justify-center rounded-xl text-sm font-semibold transition-all"
               style={hour === h ? activeStyle : inactiveStyle}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
@@ -1258,7 +1324,7 @@ function RomanticTimePicker({ value, onChange }) {
               key={m}
               type="button"
               onClick={() => setMinute(m)}
-              className="flex h-9 w-14 items-center justify-center rounded-xl text-sm font-semibold transition-all"
+              className="flex h-11 w-16 items-center justify-center rounded-xl text-sm font-semibold transition-all"
               style={minute === m ? activeStyle : inactiveStyle}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}

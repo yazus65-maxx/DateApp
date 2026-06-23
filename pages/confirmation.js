@@ -7,6 +7,7 @@ export default function Confirmation() {
   const router = useRouter();
   const [selections, setSelections] = useState(null);
   const [mounted, setMounted] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -30,6 +31,33 @@ export default function Confirmation() {
 
   // Fallback for old single-page format
   const oldDatetime = selections?.datetime;
+
+  // ─── Copy to Clipboard ───
+  const handleCopyPlan = () => {
+    const planText = [
+      "💝 Date Plan 💝",
+      "",
+      location ? `📍 Location: ${location.title}` : "",
+      dateTimeDisplay ? `🕐 Date & Time: ${dateTimeDisplay}` : oldDatetime ? `🕐 Date & Time: ${oldDatetime}` : "",
+      dishes ? `🍽️ Dishes: ${dishes.title}` : "",
+      "",
+      "made with ♥ just for you",
+    ].filter(Boolean).join("\n");
+
+    navigator.clipboard.writeText(planText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      const textarea = document.createElement("textarea");
+      textarea.value = planText;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -155,6 +183,28 @@ export default function Confirmation() {
           )}
         </motion.div>
 
+        {/* ─── Copy to Clipboard ─── */}
+        <motion.div className="mb-6 text-center" variants={itemVariants}>
+          <motion.button
+            onClick={handleCopyPlan}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-rose-200 bg-white/80 px-6 py-3 text-sm font-semibold text-rose-500 shadow-sm transition-all hover:border-rose-300 hover:bg-rose-50 active:scale-95"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            {copied ? (
+              <>
+                <span className="text-base">✅</span>
+                Copied to clipboard!
+              </>
+            ) : (
+              <>
+                <span className="text-base">📋</span>
+                Copy Plan
+              </>
+            )}
+          </motion.button>
+        </motion.div>
+
         {/* ─── Final Message ─── */}
         <motion.div className="text-center" variants={itemVariants}>
           <p className="text-sm leading-relaxed text-rose-600/80">
@@ -171,6 +221,16 @@ export default function Confirmation() {
           >
             ← Plan a new date
           </motion.button>
+
+          {/* Made just for you */}
+          <motion.p
+            className="mt-8 text-center text-xs text-rose-300/60"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            made with <span className="text-rose-400">♥</span> just for you
+          </motion.p>
         </motion.div>
       </motion.div>
     </motion.div>

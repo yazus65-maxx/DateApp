@@ -48,4 +48,17 @@
     background: linear-gradient(180deg, var(--color-rose-50) 0%, var(--color-pink-50) 50%, var(--color-warm-50) 100%);
     min-height: 100vh;
   }
+
+  button, input, select, textarea {
+    touch-action: manipulation;
+  }
+
+  input[type="date"]::-webkit-datetime-edit,
+  input[type="date"]::-webkit-inner-spin-button,
+  input[type="date"]::-webkit-clear-button {
+    -webkit-appearance: none;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    padding: 4px;
+  }
 }
