@@ -1,19 +1,24 @@
 const CONFIG = {
   // ─── Playful Intro ───
   intro: {
-    greeting: "My Love 💕",
+    greeting: "Hey there, you ✨",
     question: "Would you like to go out on a date?",
-    subtitle: "I've got something special planned… 💫",
-    yesLabel: "Yes! 💕",
+    subtitle: "I've been thinking about it for a while… 🌸",
+    extraLines: [
+      "Just the two of us, a little adventure 🗺️",
+      "I promise it'll be worth it 💫",
+      "No pressure… but also, yes pressure 😄",
+    ],
+    yesLabel: "Yes, absolutely! 💕",
     noLabel: "No",
-    noCaughtMessage: "Please say yes 🥺",
-    noCaughtSubtext: "You know you want to…",
+    noCaughtMessage: "Gotcha! You can't escape 🥺",
+    noCaughtSubtext: "Come on, say yes… it'll be so fun!",
     noDodgeMessages: [
-      "Oops, missed me!",
-      "Nice try! 😄",
-      "Not today! 🏃",
-      "So close! 😜",
-      "Catch me if you can!",
+      "Ha! Too slow 😄",
+      "Nope, not today! 🏃‍♀️",
+      "Almost… but not quite! 😜",
+      "Hehe, keep trying 💨",
+      "You'll never catch it 😏",
     ],
   },
 
@@ -26,59 +31,59 @@ const CONFIG = {
     { id: "review", number: 4, label: "Review" },
   ],
 
-  // ─── Location Options ───
+  // ─── Location Options (Nepal-relevant, 1-2 hr casual outings) ───
   locations: [
-    {
-      id: "candlelight",
-      emoji: "🕯️",
-      title: "Candlelight Dinner",
-      description: "A cozy rooftop dinner under the stars with fairy lights and soft music",
-    },
-    {
-      id: "beach",
-      emoji: "🌊",
-      title: "Beach Sunset",
-      description: "A quiet evening walk on the beach, watching the sunset together",
-    },
-    {
-      id: "stargazing",
-      emoji: "⭐",
-      title: "Stargazing Picnic",
-      description: "Blanket under the open sky with hot chocolate and a telescope",
-    },
     {
       id: "cozy-cafe",
       emoji: "☕",
-      title: "Cozy Café Date",
-      description: "Warm drinks, board games, and deep conversations in a cute café",
+      title: "Cozy Café",
+      description: "Warm drinks, soft music and sweet conversations at a cute café in the city",
+    },
+    {
+      id: "garden-stroll",
+      emoji: "🌿",
+      title: "Garden Walk",
+      description: "A relaxed stroll through a peaceful park or garden — fresh air & good vibes",
+    },
+    {
+      id: "viewpoint",
+      emoji: "🏔️",
+      title: "Hilltop Viewpoint",
+      description: "A short hike to a scenic viewpoint with stunning valley & mountain views",
+    },
+    {
+      id: "food-street",
+      emoji: "🍜",
+      title: "Food Street Outing",
+      description: "Exploring local street food together — trying snacks, chatting and laughing",
     },
   ],
 
-  // ─── Nepali Dishes ───
+  // ─── Food Options ───
   dishes: [
     {
-      id: "momo",
-      emoji: "🥟",
-      title: "Mo:Mo",
-      description: "Steamed or fried dumplings stuffed with spiced meat, served with achar 🫕",
+      id: "pizza",
+      emoji: "🍕",
+      title: "Pizza",
+      description: "Cheesy, saucy and absolutely irresistible — perfect for sharing a slice together",
     },
     {
-      id: "dal-bhat",
-      emoji: "🍛",
-      title: "Dal Bhat",
-      description: "A classic Nepali meal — lentil soup, rice, pickles, and seasonal vegetables",
+      id: "sushi",
+      emoji: "🍣",
+      title: "Sushi",
+      description: "Fresh, elegant and a little fancy — a delightful experience for two",
     },
     {
-      id: "chowmein",
+      id: "burger",
+      emoji: "🍔",
+      title: "Burger",
+      description: "Juicy, hearty and so satisfying — a classic comfort food date",
+    },
+    {
+      id: "ramen",
       emoji: "🍜",
-      title: "Nepali Chowmein",
-      description: "Wok-tossed noodles with vegetables, egg, and a hint of Sichuan pepper",
-    },
-    {
-      id: "sel-roti",
-      emoji: "🫓",
-      title: "Sel Roti & Curry",
-      description: "Traditional homemade rice donuts paired with spicy potato curry — a festival favorite!",
+      title: "Ramen",
+      description: "Warm, cozy broth with rich toppings — perfect for a relaxed, intimate meal",
     },
   ],
 

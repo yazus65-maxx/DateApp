@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/router";
 import { motion, AnimatePresence } from "framer-motion";
 import CONFIG from "@/config";
@@ -71,33 +71,46 @@ export default function Home() {
   const [noCaught, setNoCaught] = useState(false);
   const [noAttempts, setNoAttempts] = useState(0);
   const [direction, setDirection] = useState(1);
+  const [noPos, setNoPos] = useState({ x: 0, y: 0 });
+  const [noMounted, setNoMounted] = useState(false);
 
   const noRef = useRef(null);
   const noContainerRef = useRef(null);
 
-  // ─── Dodging No Button ───
-  const handleNoMouseEnter = useCallback(() => {
-    setNoAttempts((p) => p + 1);
-    const container = noContainerRef.current;
-    if (!container) return;
-    const { width, height } = container.getBoundingClientRect();
-    const pad = 20;
-    const btnW = 100;
+  // Corner positions for the No button to flee to
+  const getCornerPositions = useCallback(() => {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const btnW = 110;
     const btnH = 48;
-    const maxX = width - btnW - pad;
-    const maxY = height - btnH - pad;
-    const rx = Math.max(pad, Math.min(maxX, Math.random() * maxX));
-    const ry = Math.max(pad, Math.min(maxY, Math.random() * maxY));
-    if (noRef.current) {
-      noRef.current.style.position = "absolute";
-      noRef.current.style.left = `${rx}px`;
-      noRef.current.style.top = `${ry}px`;
-      noRef.current.style.transition = "left 0.15s ease, top 0.15s ease";
-    }
+    const margin = 24;
+    return [
+      { x: margin, y: margin },
+      { x: vw - btnW - margin, y: margin },
+      { x: margin, y: vh - btnH - margin },
+      { x: vw - btnW - margin, y: vh - btnH - margin },
+      { x: vw / 2 - btnW / 2, y: margin },
+      { x: vw / 2 - btnW / 2, y: vh - btnH - margin },
+      { x: margin, y: vh / 2 - btnH / 2 },
+      { x: vw - btnW - margin, y: vh / 2 - btnH / 2 },
+    ];
   }, []);
+
+  // ─── Dodging No Button ───
+  const handleNoHover = useCallback(() => {
+    setNoAttempts((p) => p + 1);
+    const corners = getCornerPositions();
+    const pick = corners[Math.floor(Math.random() * corners.length)];
+    setNoPos(pick);
+    setNoMounted(true);
+  }, [getCornerPositions]);
+
+  // Keep legacy ref logic for container-relative fallback
+  const handleNoMouseEnter = handleNoHover;
 
   const handleNoClick = useCallback(() => {
     setNoCaught(true);
+    setNoMounted(false);
   }, []);
 
   const handleYesIntro = useCallback(() => {
@@ -107,6 +120,7 @@ export default function Home() {
     }
     setAgreed(true);
     setNoCaught(false);
+    setNoMounted(false);
     setDirection(1);
     setStep(1);
   }, []);
@@ -240,16 +254,23 @@ export default function Home() {
               transition={{ duration: 0.35 }}
               className="flex min-h-[60vh] flex-col items-center justify-center text-center"
             >
-              <motion.div className="mb-6 text-5xl" variants={fadeUp} custom={0}>
+              {/* Big floating heart */}
+              <motion.div
+                className="mb-4 text-6xl"
+                animate={{ scale: [1, 1.12, 1], rotate: [0, -4, 4, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              >
                 💕
               </motion.div>
+
               <motion.p
-                className="mb-2 text-sm font-medium tracking-widest uppercase text-rose-400"
+                className="mb-2 text-sm font-semibold tracking-widest uppercase text-rose-400"
                 variants={fadeUp}
                 custom={1}
               >
                 {CONFIG.intro.greeting}
               </motion.p>
+
               <motion.h1
                 className="bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 bg-clip-text text-3xl font-bold leading-tight text-transparent sm:text-4xl"
                 variants={fadeUp}
@@ -257,6 +278,7 @@ export default function Home() {
               >
                 {CONFIG.intro.question}
               </motion.h1>
+
               <motion.p
                 className="mt-3 text-base text-rose-700/70"
                 variants={fadeUp}
@@ -265,21 +287,41 @@ export default function Home() {
                 {CONFIG.intro.subtitle}
               </motion.p>
 
-              {/* floating decorations */}
+              {/* Extra anticipation lines */}
               <motion.div
-                className="mt-6 flex justify-center gap-3 text-2xl"
+                className="mt-4 space-y-1.5"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.8, duration: 0.6 }}
+                transition={{ delay: 0.7, duration: 0.5 }}
               >
-                {["🌹", "✨", "💖", "⭐"].map((emoji, i) => (
+                {CONFIG.intro.extraLines.map((line, i) => (
+                  <motion.p
+                    key={i}
+                    className="text-sm text-rose-500/80 italic"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.7 + i * 0.2, duration: 0.4 }}
+                  >
+                    {line}
+                  </motion.p>
+                ))}
+              </motion.div>
+
+              {/* Floating decorative emojis */}
+              <motion.div
+                className="mt-5 flex justify-center gap-3 text-2xl"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.2, duration: 0.6 }}
+              >
+                {["🌸", "✨", "💖", "🌙", "⭐", "🌹"].map((emoji, i) => (
                   <motion.span
                     key={emoji}
-                    animate={{ y: [0, -6, 0] }}
+                    animate={{ y: [0, -8, 0], rotate: [0, i % 2 === 0 ? 8 : -8, 0] }}
                     transition={{
-                      duration: 2,
+                      duration: 2 + i * 0.3,
                       repeat: Infinity,
-                      delay: i * 0.4,
+                      delay: i * 0.35,
                       ease: "easeInOut",
                     }}
                   >
@@ -292,7 +334,7 @@ export default function Home() {
               <motion.div
                 className="relative mt-10 w-full max-w-xs"
                 variants={fadeUp}
-                custom={4}
+                custom={5}
               >
                 {noCaught ? (
                   <motion.div
@@ -300,7 +342,7 @@ export default function Home() {
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                   >
-                    <p className="mb-1 text-2xl">🥺</p>
+                    <p className="mb-1 text-3xl">🥺✨</p>
                     <p className="text-lg font-semibold text-rose-600">
                       {CONFIG.intro.noCaughtMessage}
                     </p>
@@ -318,7 +360,7 @@ export default function Home() {
                   </motion.div>
                 ) : (
                   <div className="flex flex-col items-center gap-4">
-                    {/* Yes button — big and prominent */}
+                    {/* Yes button */}
                     <motion.button
                       onClick={handleYesIntro}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-rose-400 px-8 py-4 text-lg font-semibold text-white shadow-lg shadow-rose-300/50 transition-all hover:shadow-xl hover:shadow-rose-300/60"
@@ -328,61 +370,63 @@ export default function Home() {
                       {CONFIG.intro.yesLabel}
                     </motion.button>
 
-                    {/* No button — dodges cursor */}
-                    <div
-                      ref={noContainerRef}
-                      className="relative h-12 w-full"
-                    >
-                      <button
-                        ref={noRef}
-                        onClick={handleNoClick}
-                        onMouseEnter={handleNoMouseEnter}
-                        onTouchStart={(e) => {
-                          e.preventDefault();
-                          setNoAttempts((p) => p + 1);
-                          const container = noContainerRef.current;
-                          if (!container) return;
-                          const { width, height } = container.getBoundingClientRect();
-                          const pad = 20;
-                          const btnW = 100;
-                          const btnH = 48;
-                          const maxX = width - btnW - pad;
-                          const maxY = height - btnH - pad;
-                          const rx = Math.max(pad, Math.min(maxX, Math.random() * maxX));
-                          const ry = Math.max(pad, Math.min(maxY, Math.random() * maxY));
-                          if (noRef.current) {
-                            noRef.current.style.position = "absolute";
-                            noRef.current.style.left = `${rx}px`;
-                            noRef.current.style.top = `${ry}px`;
-                            noRef.current.style.transition = "left 0.2s ease, top 0.2s ease";
-                          }
-                        }}
-                        className="absolute left-1/2 top-0 -translate-x-1/2 cursor-pointer rounded-xl border-2 border-rose-200 bg-white/70 px-6 py-2 text-sm font-medium text-rose-400 transition-colors hover:border-rose-300 hover:bg-rose-50/50"
-                      >
-                        {CONFIG.intro.noLabel}
-                      </button>
-                    </div>
+                    {/* No button — floats to screen corners */}
+                    <AnimatePresence mode="popLayout">
+                      {!noMounted ? (
+                        <motion.button
+                          key="no-initial"
+                          onClick={handleNoClick}
+                          onMouseEnter={handleNoHover}
+                          onTouchStart={(e) => { e.preventDefault(); handleNoHover(); }}
+                          className="cursor-pointer rounded-xl border-2 border-rose-200 bg-white/70 px-7 py-2.5 text-sm font-medium text-rose-400 transition-colors hover:border-rose-300 hover:bg-rose-50/50"
+                          initial={{ opacity: 1 }}
+                          exit={{ opacity: 0, scale: 0.5 }}
+                          whileTap={{ scale: 0.9 }}
+                        >
+                          {CONFIG.intro.noLabel} 🙅
+                        </motion.button>
+                      ) : (
+                        <motion.button
+                          key="no-floating"
+                          onClick={handleNoClick}
+                          onMouseEnter={handleNoHover}
+                          onTouchStart={(e) => { e.preventDefault(); handleNoHover(); }}
+                          className="fixed z-50 cursor-pointer rounded-xl border-2 border-rose-300 bg-white/90 px-7 py-2.5 text-sm font-medium text-rose-400 shadow-lg backdrop-blur-sm hover:border-rose-400"
+                          style={{ pointerEvents: "auto" }}
+                          initial={{ opacity: 0, scale: 0.5 }}
+                          animate={{ x: noPos.x, y: noPos.y, opacity: 1, scale: 1 }}
+                          transition={{ type: "spring", stiffness: 220, damping: 18 }}
+                          whileTap={{ scale: 0.9 }}
+                        >
+                          {CONFIG.intro.noLabel} 🙅
+                        </motion.button>
+                      )}
+                    </AnimatePresence>
 
-                    {noAttempts > 0 && noAttempts <= 2 && (
-                      <motion.p
-                        className="text-sm text-rose-400"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        key={noAttempts}
-                      >
-                        {CONFIG.intro.noDodgeMessages[noAttempts - 1]}
-                      </motion.p>
-                    )}
-                    {noAttempts > 2 && (
-                      <motion.p
-                        className="text-sm font-medium text-rose-500"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        key="persistent"
-                      >
-                        You know you want to say yes… 😄
-                      </motion.p>
-                    )}
+                    {/* Dodge messages */}
+                    <AnimatePresence mode="wait">
+                      {noAttempts > 0 && noAttempts <= CONFIG.intro.noDodgeMessages.length && (
+                        <motion.p
+                          className="text-sm text-rose-400 font-medium"
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          key={noAttempts}
+                        >
+                          {CONFIG.intro.noDodgeMessages[noAttempts - 1]}
+                        </motion.p>
+                      )}
+                      {noAttempts > CONFIG.intro.noDodgeMessages.length && (
+                        <motion.p
+                          className="text-sm font-semibold text-rose-500"
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          key="persistent"
+                        >
+                          You know you want to say yes… 😄✨
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
               </motion.div>
@@ -527,8 +571,12 @@ export default function Home() {
               transition={{ duration: 0.35 }}
             >
               <div className="mb-6 text-center">
-                <motion.span className="mb-2 inline-block text-3xl" variants={fadeUp} custom={0}>
-                  🕐
+                <motion.span
+                  className="mb-2 inline-block text-4xl"
+                  animate={{ rotate: [0, -10, 10, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  🗓️
                 </motion.span>
                 <motion.h2
                   className="text-2xl font-bold text-rose-800"
@@ -542,58 +590,102 @@ export default function Home() {
                   variants={fadeUp}
                   custom={2}
                 >
-                  Pick any date and time that works for you
+                  Pick a date & time that works for us 💫
                 </motion.p>
               </div>
 
+              {/* ─── Romantic Date Picker ─── */}
               <motion.div
-                className="space-y-5 rounded-2xl bg-white/70 p-6 shadow-sm"
+                className="space-y-4"
                 variants={fadeUp}
                 custom={0}
               >
-                {/* Date Picker */}
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-rose-700">
-                    📅 Select a Date
-                  </label>
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    min={new Date().toISOString().split("T")[0]}
-                    className="w-full rounded-xl border border-rose-200 bg-white/80 px-4 py-3 text-sm text-rose-800 outline-none transition-all focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
-                  />
-                  {date && (
-                    <motion.p
-                      className="mt-1.5 text-xs font-medium text-rose-500"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                    >
-                      {formatDate(date)}
-                    </motion.p>
-                  )}
+                {/* Date Selection */}
+                <div
+                  className="overflow-hidden rounded-2xl shadow-md"
+                  style={{
+                    background: "linear-gradient(135deg, #fff5f7 0%, #fff0f5 100%)",
+                    border: "1.5px solid #fbc8d4",
+                  }}
+                >
+                  <div
+                    className="flex items-center gap-2 px-5 py-3"
+                    style={{
+                      background: "linear-gradient(90deg, #fb7185 0%, #f43f5e 100%)",
+                    }}
+                  >
+                    <span className="text-lg">📅</span>
+                    <span className="text-sm font-semibold text-white tracking-wide">Select a Date</span>
+                  </div>
+                  <div className="px-5 py-4">
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      min={new Date().toISOString().split("T")[0]}
+                      className="w-full rounded-xl px-4 py-3 text-sm font-medium text-rose-800 outline-none transition-all focus:ring-2 focus:ring-rose-300"
+                      style={{
+                        background: "rgba(255,255,255,0.85)",
+                        border: "1.5px solid #fda4af",
+                        colorScheme: "light",
+                      }}
+                    />
+                    <AnimatePresence>
+                      {date && (
+                        <motion.div
+                          className="mt-3 flex items-center gap-2 rounded-xl px-4 py-2.5"
+                          style={{ background: "linear-gradient(90deg, #ffe4e6, #fdf2f8)" }}
+                          initial={{ opacity: 0, y: 6, height: 0 }}
+                          animate={{ opacity: 1, y: 0, height: "auto" }}
+                          exit={{ opacity: 0, y: -6, height: 0 }}
+                        >
+                          <span className="text-base">🌸</span>
+                          <p className="text-xs font-semibold text-rose-600">
+                            {formatDate(date)}
+                          </p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
 
-                {/* Time Picker */}
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-rose-700">
-                    ⏰ Pick a Time
-                  </label>
-                  <input
-                    type="time"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    className="w-full rounded-xl border border-rose-200 bg-white/80 px-4 py-3 text-sm text-rose-800 outline-none transition-all focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
-                  />
-                  {time && (
-                    <motion.p
-                      className="mt-1.5 text-xs font-medium text-rose-500"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                    >
-                      {formatTime(time)}
-                    </motion.p>
-                  )}
+                {/* Time Selection */}
+                <div
+                  className="overflow-hidden rounded-2xl shadow-md"
+                  style={{
+                    background: "linear-gradient(135deg, #fff5f7 0%, #fff0f5 100%)",
+                    border: "1.5px solid #fbc8d4",
+                  }}
+                >
+                  <div
+                    className="flex items-center gap-2 px-5 py-3"
+                    style={{
+                      background: "linear-gradient(90deg, #ec4899 0%, #db2777 100%)",
+                    }}
+                  >
+                    <span className="text-lg">⏰</span>
+                    <span className="text-sm font-semibold text-white tracking-wide">Pick a Time</span>
+                  </div>
+                  <div className="px-5 py-4">
+                    {/* Custom time picker with hour buttons */}
+                    <RomanticTimePicker value={time} onChange={setTime} />
+                    <AnimatePresence>
+                      {time && (
+                        <motion.div
+                          className="mt-3 flex items-center gap-2 rounded-xl px-4 py-2.5"
+                          style={{ background: "linear-gradient(90deg, #fce7f3, #fdf2f8)" }}
+                          initial={{ opacity: 0, y: 6, height: 0 }}
+                          animate={{ opacity: 1, y: 0, height: "auto" }}
+                          exit={{ opacity: 0, y: -6, height: 0 }}
+                        >
+                          <span className="text-base">✨</span>
+                          <p className="text-xs font-semibold text-rose-600">
+                            Meeting at {formatTime(time)}
+                          </p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               </motion.div>
 
@@ -617,7 +709,11 @@ export default function Home() {
               transition={{ duration: 0.35 }}
             >
               <div className="mb-6 text-center">
-                <motion.span className="mb-2 inline-block text-3xl" variants={fadeUp} custom={0}>
+                <motion.span
+                  className="mb-2 inline-block text-4xl"
+                  animate={{ rotate: [0, -8, 8, 0], scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                >
                   🍽️
                 </motion.span>
                 <motion.h2
@@ -625,57 +721,85 @@ export default function Home() {
                   variants={fadeUp}
                   custom={1}
                 >
-                  What to Eat
+                  What to Eat?
                 </motion.h2>
                 <motion.p
                   className="mt-1 text-sm text-rose-500"
                   variants={fadeUp}
                   custom={2}
                 >
-                  Pick something delicious 🥰
+                  Pick something delicious for our date 🥰
                 </motion.p>
               </div>
 
-              <div className="mb-4 grid gap-3">
+              {/* 2×2 food card grid */}
+              <div className="mb-4 grid grid-cols-2 gap-3">
                 {CONFIG.dishes.map((dish, i) => (
                   <motion.button
                     key={dish.id}
                     onClick={() => setDishes(dish)}
-                    className={`group relative w-full rounded-2xl border-2 p-4 text-left shadow-sm transition-all duration-200 sm:p-5 ${
-                      dishes?.id === dish.id
-                        ? "border-rose-400 bg-rose-50 shadow-md shadow-rose-200/50"
-                        : "border-rose-100/60 bg-white/70 hover:border-rose-200 hover:bg-rose-50/50 hover:shadow-md"
-                    }`}
+                    className="group relative flex flex-col items-center rounded-2xl p-4 text-center shadow-sm transition-all duration-200"
+                    style={{
+                      background: dishes?.id === dish.id
+                        ? "linear-gradient(135deg, #ffe4e6 0%, #fce7f3 100%)"
+                        : "rgba(255,255,255,0.75)",
+                      border: dishes?.id === dish.id
+                        ? "2px solid #fb7185"
+                        : "2px solid rgba(251,207,232,0.5)",
+                      boxShadow: dishes?.id === dish.id
+                        ? "0 4px 20px rgba(244,63,94,0.18)"
+                        : "0 2px 8px rgba(0,0,0,0.06)",
+                    }}
                     variants={scaleIn}
                     initial="hidden"
                     animate="visible"
                     custom={i}
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={{ scale: 1.04, y: -3 }}
+                    whileTap={{ scale: 0.96 }}
                   >
-                    <div className="flex items-center gap-4">
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-pink-100 text-2xl transition-transform duration-200 group-hover:scale-110">
-                        {dish.emoji}
-                      </span>
-                      <div className="flex-1">
-                        <h3 className="text-base font-semibold text-rose-800 sm:text-lg">
-                          {dish.title}
-                        </h3>
-                        <p className="mt-0.5 text-sm leading-relaxed text-rose-600/70">
-                          {dish.description}
-                        </p>
-                      </div>
-                      {dishes?.id === dish.id && (
-                        <motion.span
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-rose-400 text-sm text-white"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                        >
-                          ✓
-                        </motion.span>
-                      )}
-                    </div>
+                    {/* Selected glow */}
+                    {dishes?.id === dish.id && (
+                      <motion.div
+                        className="absolute inset-0 rounded-2xl"
+                        style={{
+                          background: "radial-gradient(circle at 50% 0%, rgba(244,63,94,0.13) 0%, transparent 70%)",
+                        }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      />
+                    )}
+
+                    {/* Emoji */}
+                    <motion.span
+                      className="mb-2 text-4xl"
+                      animate={dishes?.id === dish.id ? { scale: [1, 1.15, 1] } : {}}
+                      transition={{ duration: 0.4 }}
+                    >
+                      {dish.emoji}
+                    </motion.span>
+
+                    <h3
+                      className="text-sm font-bold"
+                      style={{ color: dishes?.id === dish.id ? "#e11d48" : "#9f1239" }}
+                    >
+                      {dish.title}
+                    </h3>
+                    <p className="mt-1 text-xs leading-relaxed" style={{ color: "#fb7185" }}>
+                      {dish.description}
+                    </p>
+
+                    {/* Checkmark badge */}
+                    {dishes?.id === dish.id && (
+                      <motion.div
+                        className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-xs text-white"
+                        style={{ background: "linear-gradient(135deg, #f43f5e, #ec4899)" }}
+                        initial={{ scale: 0, rotate: -30 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                      >
+                        ✓
+                      </motion.div>
+                    )}
                   </motion.button>
                 ))}
               </div>
@@ -878,5 +1002,120 @@ function StepNav({ onBack, onNext, nextDisabled, nextLabel }) {
         {nextLabel}
       </motion.button>
     </motion.div>
+  );
+}
+
+/* ─── Romantic Time Picker Sub-component ─── */
+function RomanticTimePicker({ value, onChange }) {
+  const parseHour = (v) => {
+    if (!v) return "";
+    const h = parseInt(v.split(":")[0], 10);
+    const mod = h % 12;
+    return mod === 0 ? 12 : mod;
+  };
+  const parseMinute = (v) => {
+    if (!v) return "00";
+    return v.split(":")[1] || "00";
+  };
+  const parseAmpm = (v) => {
+    if (!v) return "AM";
+    const h = parseInt(v.split(":")[0], 10);
+    return h >= 12 ? "PM" : "AM";
+  };
+
+  const [hour, setHour] = useState(() => parseHour(value));
+  const [minute, setMinute] = useState(() => parseMinute(value));
+  const [ampm, setAmpm] = useState(() => parseAmpm(value));
+
+  useEffect(() => {
+    if (hour === "") return;
+    const h = parseInt(hour, 10);
+    let h24 = h;
+    if (ampm === "PM" && h !== 12) h24 = h + 12;
+    if (ampm === "AM" && h === 12) h24 = 0;
+    const timeStr = `${String(h24).padStart(2, "0")}:${minute}`;
+    onChange(timeStr);
+  }, [hour, minute, ampm, onChange]);
+
+  const hours = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  const minutes = ["00", "15", "30", "45"];
+
+  const activeStyle = {
+    background: "linear-gradient(135deg, #f43f5e, #ec4899)",
+    color: "#fff",
+    border: "none",
+    boxShadow: "0 2px 12px rgba(244,63,94,0.35)",
+  };
+  const inactiveStyle = {
+    background: "rgba(255,255,255,0.85)",
+    color: "#be185d",
+    border: "1.5px solid #fda4af",
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Hour row */}
+      <div>
+        <p className="mb-2 text-xs font-semibold text-rose-500 tracking-wide uppercase">Hour</p>
+        <div className="flex flex-wrap gap-2">
+          {hours.map((h) => (
+            <motion.button
+              key={h}
+              type="button"
+              onClick={() => setHour(h)}
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-semibold transition-all"
+              style={hour === h ? activeStyle : inactiveStyle}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              {h}
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
+      {/* Minute row */}
+      <div>
+        <p className="mb-2 text-xs font-semibold text-rose-500 tracking-wide uppercase">Minute</p>
+        <div className="flex gap-2">
+          {minutes.map((m) => (
+            <motion.button
+              key={m}
+              type="button"
+              onClick={() => setMinute(m)}
+              className="flex h-9 w-14 items-center justify-center rounded-xl text-sm font-semibold transition-all"
+              style={minute === m ? activeStyle : inactiveStyle}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              :{m}
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
+      {/* AM / PM toggle */}
+      <div>
+        <p className="mb-2 text-xs font-semibold text-rose-500 tracking-wide uppercase">AM / PM</p>
+        <div
+          className="inline-flex rounded-xl p-1"
+          style={{ background: "rgba(255,255,255,0.85)", border: "1.5px solid #fda4af" }}
+        >
+          {["AM", "PM"].map((period) => (
+            <motion.button
+              key={period}
+              type="button"
+              onClick={() => setAmpm(period)}
+              className="rounded-lg px-5 py-1.5 text-sm font-bold transition-all"
+              style={ampm === period ? activeStyle : { background: "transparent", color: "#be185d" }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              {period}
+            </motion.button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
