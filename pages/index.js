@@ -64,6 +64,8 @@ export default function Home() {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [dishes, setDishes] = useState(null);
+  const [dishType, setDishType] = useState("preset"); // "preset" | "custom"
+  const [customDish, setCustomDish] = useState("");
 
   // ─── UI State ───
   const [loading, setLoading] = useState(false);
@@ -77,33 +79,72 @@ export default function Home() {
   const noRef = useRef(null);
   const noContainerRef = useRef(null);
 
-  // Corner positions for the No button to flee to
-  const getCornerPositions = useCallback(() => {
+  // Generate a truly random position across the full viewport
+  // Biases toward edges and avoids the center to make the button feel evasive
+  const getRandomPosition = useCallback(() => {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const btnW = 110;
+    const btnW = 120;
     const btnH = 48;
-    const margin = 24;
-    return [
-      { x: margin, y: margin },
-      { x: vw - btnW - margin, y: margin },
-      { x: margin, y: vh - btnH - margin },
-      { x: vw - btnW - margin, y: vh - btnH - margin },
-      { x: vw / 2 - btnW / 2, y: margin },
-      { x: vw / 2 - btnW / 2, y: vh - btnH - margin },
-      { x: margin, y: vh / 2 - btnH / 2 },
-      { x: vw - btnW - margin, y: vh / 2 - btnH / 2 },
-    ];
+    const margin = 16;
+
+    // Zone weighting: 70% chance of edge zones, 30% chance of anywhere
+    const strategy = Math.random();
+
+    let x, y;
+
+    if (strategy < 0.18) {
+      // Far left strip
+      x = margin + Math.random() * (vw * 0.15);
+      y = margin + Math.random() * (vh - btnH - margin * 2);
+    } else if (strategy < 0.36) {
+      // Far right strip
+      x = vw - btnW - margin - Math.random() * (vw * 0.15);
+      y = margin + Math.random() * (vh - btnH - margin * 2);
+    } else if (strategy < 0.50) {
+      // Top strip
+      x = margin + Math.random() * (vw - btnW - margin * 2);
+      y = margin + Math.random() * (vh * 0.15);
+    } else if (strategy < 0.64) {
+      // Bottom strip
+      x = margin + Math.random() * (vw - btnW - margin * 2);
+      y = vh - btnH - margin - Math.random() * (vh * 0.15);
+    } else if (strategy < 0.72) {
+      // Top-left corner
+      x = margin + Math.random() * (vw * 0.2);
+      y = margin + Math.random() * (vh * 0.2);
+    } else if (strategy < 0.80) {
+      // Top-right corner
+      x = vw - btnW - margin - Math.random() * (vw * 0.2);
+      y = margin + Math.random() * (vh * 0.2);
+    } else if (strategy < 0.88) {
+      // Bottom-left corner
+      x = margin + Math.random() * (vw * 0.2);
+      y = vh - btnH - margin - Math.random() * (vh * 0.2);
+    } else if (strategy < 0.96) {
+      // Bottom-right corner
+      x = vw - btnW - margin - Math.random() * (vw * 0.2);
+      y = vh - btnH - margin - Math.random() * (vh * 0.2);
+    } else {
+      // Wild card: anywhere on screen (excluding center)
+      x = margin + Math.random() * (vw - btnW - margin * 2);
+      y = margin + Math.random() * (vh - btnH - margin * 2);
+    }
+
+    // Clamp within screen
+    x = Math.max(margin, Math.min(x, vw - btnW - margin));
+    y = Math.max(margin, Math.min(y, vh - btnH - margin));
+
+    return { x: Math.round(x), y: Math.round(y) };
   }, []);
 
   // ─── Dodging No Button ───
   const handleNoHover = useCallback(() => {
     setNoAttempts((p) => p + 1);
-    const corners = getCornerPositions();
-    const pick = corners[Math.floor(Math.random() * corners.length)];
-    setNoPos(pick);
+    const pos = getRandomPosition();
+    setNoPos(pos);
     setNoMounted(true);
-  }, [getCornerPositions]);
+  }, [getRandomPosition]);
 
   // Keep legacy ref logic for container-relative fallback
   const handleNoMouseEnter = handleNoHover;
@@ -145,6 +186,8 @@ export default function Home() {
 
     const locationTitle =
       locationType === "custom" ? customLocation : location?.title;
+    const dishTitle =
+      dishType === "custom" ? customDish : dishes?.title;
     const dateTimeStr = date && time ? `${formatDate(date)} at ${formatTime(time)}` : "";
 
     try {
@@ -154,7 +197,7 @@ export default function Home() {
         body: JSON.stringify({
           location: locationTitle,
           datetime: dateTimeStr,
-          dishes: dishes?.title,
+          dishes: dishTitle,
         }),
       });
 
@@ -169,7 +212,7 @@ export default function Home() {
             time: formatTime(time),
             dateRaw: date,
             timeRaw: time,
-            dishes: { title: dishes?.title },
+            dishes: { title: dishTitle },
           })
         );
       }
@@ -185,7 +228,7 @@ export default function Home() {
   // ─── Derived ───
   const locationReady = locationType === "custom" ? customLocation.trim() !== "" : location !== null;
   const datetimeReady = date !== "" && time !== "";
-  const dishesReady = dishes !== null;
+  const dishesReady = dishType === "custom" ? customDish.trim() !== "" : dishes !== null;
   const allReady = locationReady && datetimeReady && dishesReady;
 
   const totalSteps = CONFIG.steps.length; // 5
@@ -423,7 +466,7 @@ export default function Home() {
                           animate={{ opacity: 1, y: 0 }}
                           key="persistent"
                         >
-                          You know you want to say yes… 😄✨
+                          You know you want to say yes… 😄✨ Keep trying!
                         </motion.p>
                       )}
                     </AnimatePresence>
@@ -732,21 +775,21 @@ export default function Home() {
                 </motion.p>
               </div>
 
-              {/* 2×2 food card grid */}
+              {/* Food card grid */}
               <div className="mb-4 grid grid-cols-2 gap-3">
                 {CONFIG.dishes.map((dish, i) => (
                   <motion.button
                     key={dish.id}
-                    onClick={() => setDishes(dish)}
+                    onClick={() => { setDishes(dish); setDishType("preset"); }}
                     className="group relative flex flex-col items-center rounded-2xl p-4 text-center shadow-sm transition-all duration-200"
                     style={{
-                      background: dishes?.id === dish.id
+                      background: dishType === "preset" && dishes?.id === dish.id
                         ? "linear-gradient(135deg, #ffe4e6 0%, #fce7f3 100%)"
                         : "rgba(255,255,255,0.75)",
-                      border: dishes?.id === dish.id
+                      border: dishType === "preset" && dishes?.id === dish.id
                         ? "2px solid #fb7185"
                         : "2px solid rgba(251,207,232,0.5)",
-                      boxShadow: dishes?.id === dish.id
+                      boxShadow: dishType === "preset" && dishes?.id === dish.id
                         ? "0 4px 20px rgba(244,63,94,0.18)"
                         : "0 2px 8px rgba(0,0,0,0.06)",
                     }}
@@ -758,7 +801,7 @@ export default function Home() {
                     whileTap={{ scale: 0.96 }}
                   >
                     {/* Selected glow */}
-                    {dishes?.id === dish.id && (
+                    {dishType === "preset" && dishes?.id === dish.id && (
                       <motion.div
                         className="absolute inset-0 rounded-2xl"
                         style={{
@@ -772,7 +815,7 @@ export default function Home() {
                     {/* Emoji */}
                     <motion.span
                       className="mb-2 text-4xl"
-                      animate={dishes?.id === dish.id ? { scale: [1, 1.15, 1] } : {}}
+                      animate={dishType === "preset" && dishes?.id === dish.id ? { scale: [1, 1.15, 1] } : {}}
                       transition={{ duration: 0.4 }}
                     >
                       {dish.emoji}
@@ -780,7 +823,7 @@ export default function Home() {
 
                     <h3
                       className="text-sm font-bold"
-                      style={{ color: dishes?.id === dish.id ? "#e11d48" : "#9f1239" }}
+                      style={{ color: dishType === "preset" && dishes?.id === dish.id ? "#e11d48" : "#9f1239" }}
                     >
                       {dish.title}
                     </h3>
@@ -789,7 +832,7 @@ export default function Home() {
                     </p>
 
                     {/* Checkmark badge */}
-                    {dishes?.id === dish.id && (
+                    {dishType === "preset" && dishes?.id === dish.id && (
                       <motion.div
                         className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-xs text-white"
                         style={{ background: "linear-gradient(135deg, #f43f5e, #ec4899)" }}
@@ -803,6 +846,45 @@ export default function Home() {
                   </motion.button>
                 ))}
               </div>
+
+              {/* Custom food input */}
+              <motion.div
+                className={`rounded-2xl border-2 p-4 shadow-sm transition-all sm:p-5 ${
+                  dishType === "custom"
+                    ? "border-rose-400 bg-rose-50 shadow-md shadow-rose-200/50"
+                    : "border-rose-100/60 bg-white/70"
+                }`}
+                variants={scaleIn}
+                initial="hidden"
+                animate="visible"
+                custom={CONFIG.dishes.length}
+              >
+                <label className="flex cursor-pointer items-center gap-3">
+                  <input
+                    type="radio"
+                    name="dishType"
+                    checked={dishType === "custom"}
+                    onChange={() => {
+                      setDishType("custom");
+                      setDishes(null);
+                    }}
+                    className="h-4 w-4 accent-rose-400"
+                  />
+                  <span className="text-sm font-medium text-rose-700">Something else… 🍴</span>
+                </label>
+                {dishType === "custom" && (
+                  <motion.input
+                    type="text"
+                    value={customDish}
+                    onChange={(e) => setCustomDish(e.target.value)}
+                    placeholder="Type your dream food… 🤤"
+                    className="mt-3 w-full rounded-xl border border-rose-200 bg-white/80 px-4 py-3 text-sm text-rose-800 placeholder-rose-300 outline-none transition-all focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    autoFocus
+                  />
+                )}
+              </motion.div>
 
               <StepNav
                 onBack={goBack}
@@ -879,7 +961,7 @@ export default function Home() {
                   <div>
                     <p className="text-xs font-medium text-rose-400">Dishes</p>
                     <p className="text-sm font-semibold text-rose-800">
-                      {dishes?.title}
+                      {dishType === "custom" ? customDish : dishes?.title}
                     </p>
                   </div>
                 </div>
