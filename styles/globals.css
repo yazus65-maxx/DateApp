@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  --color-rose-50: #fff1f2;
+  --color-rose-100: #ffe4e6;
+  --color-rose-200: #fecdd3;
+  --color-rose-300: #fda4af;
+  --color-rose-400: #fb7185;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
+  --color-rose-700: #be123c;
+  --color-rose-800: #9f1239;
+  --color-rose-900: #881337;
+
+  --color-pink-50: #fdf2f8;
+  --color-pink-100: #fce7f3;
+  --color-pink-200: #fbcfe8;
+  --color-pink-300: #f9a8d4;
+  --color-pink-400: #f472b6;
+  --color-pink-500: #ec4899;
+  --color-pink-600: #db2777;
+  --color-pink-700: #be185d;
+
+  --color-warm-50: #fef7f2;
+  --color-warm-100: #fde8db;
+  --color-warm-200: #fbd1b8;
+  --color-warm-300: #f6ab8a;
+  --color-warm-400: #ee7b54;
+  --color-warm-500: #e55a2b;
+  --color-warm-600: #d4431a;
+  --color-warm-700: #b03215;
+
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: "Georgia", "Times New Roman", serif;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: linear-gradient(180deg, var(--color-rose-50) 0%, var(--color-pink-50) 50%, var(--color-warm-50) 100%);
+    min-height: 100vh;
+  }
+}
