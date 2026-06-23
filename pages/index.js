@@ -74,10 +74,11 @@ export default function Home() {
   const [noAttempts, setNoAttempts] = useState(0);
   const [direction, setDirection] = useState(1);
   const [noPos, setNoPos] = useState({ x: 0, y: 0 });
-  const [noMounted, setNoMounted] = useState(false);
+  const [noMounted, setNoMounted] = useState(true);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isWobbling, setIsWobbling] = useState(false);
 
   const noRef = useRef(null);
-  const noContainerRef = useRef(null);
 
   // Generate a truly random position across the full viewport
   // Biases toward edges and avoids the center to make the button feel evasive
@@ -138,21 +139,105 @@ export default function Home() {
     return { x: Math.round(x), y: Math.round(y) };
   }, []);
 
-  // ─── Dodging No Button ───
+  // ─── Track cursor position globally ───
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      setMousePos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
+
+  // ─── Set initial No button position ───
+  useEffect(() => {
+    setNoPos({
+      x: Math.round((window.innerWidth - 120) / 2),
+      y: Math.round(window.innerHeight * 0.78),
+    });
+  }, []);
+
+  // ─── Wobble No button when cursor approaches ───
+  useEffect(() => {
+    if (!mousePos.x && !mousePos.y) {
+      setIsWobbling(false);
+      return;
+    }
+
+    const btnW = 120;
+    const btnH = 48;
+    const btnCX = noPos.x + btnW / 2;
+    const btnCY = noPos.y + btnH / 2;
+    const dx = btnCX - mousePos.x;
+    const dy = btnCY - mousePos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // Wobble when cursor is within 180px but not yet on the button (< 20px = about to flee)
+    const nextState = dist < 180 && dist > 20;
+    if (nextState !== isWobbling) {
+      setIsWobbling(nextState);
+    }
+  }, [mousePos, noPos, isWobbling]);
+
+  // ─── Dodging No Button — flees from cursor ───
   const handleNoHover = useCallback(() => {
     setNoAttempts((p) => p + 1);
-    const pos = getRandomPosition();
-    setNoPos(pos);
-    setNoMounted(true);
-  }, [getRandomPosition]);
 
-  // Keep legacy ref logic for container-relative fallback
-  const handleNoMouseEnter = handleNoHover;
+    setNoPos((prev) => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const btnW = 120;
+      const btnH = 48;
+      const margin = 16;
+
+      // Fallback if no mouse position yet
+      if (!mousePos.x && !mousePos.y) return getRandomPosition();
+
+      const btnCX = prev.x + btnW / 2;
+      const btnCY = prev.y + btnH / 2;
+
+      // Vector from mouse toward button center
+      const dx = btnCX - mousePos.x;
+      const dy = btnCY - mousePos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Flee distance scales inversely with proximity
+      const fleeDist = Math.max(280, Math.min(500, 440 - dist * 0.5));
+
+      let newX, newY;
+      if (dist < 1) {
+        // Mouse dead-center — pick a random escape route
+        const angle = Math.random() * Math.PI * 2;
+        newX = prev.x + Math.cos(angle) * 320;
+        newY = prev.y + Math.sin(angle) * 320;
+      } else {
+        const normX = dx / dist;
+        const normY = dy / dist;
+        newX = prev.x + normX * fleeDist;
+        newY = prev.y + normY * fleeDist;
+      }
+
+      // Clamp within viewport
+      newX = Math.max(margin, Math.min(newX, vw - btnW - margin));
+      newY = Math.max(margin, Math.min(newY, vh - btnH - margin));
+
+      return { x: Math.round(newX), y: Math.round(newY) };
+    });
+  }, [mousePos, getRandomPosition]);
 
   const handleNoClick = useCallback(() => {
-    setNoCaught(true);
-    setNoMounted(false);
-  }, []);
+    // Button flees on click — only "catch" it after many persistent attempts
+    setNoAttempts((prev) => {
+      const next = prev + 1;
+      if (next >= CONFIG.intro.noDodgeMessages.length + 3) {
+        setNoCaught(true);
+        setNoMounted(false);
+      }
+      return next;
+    });
+
+    // Flee to a distant random position for dramatic effect
+    setNoPos(getRandomPosition());
+  }, [getRandomPosition]);
 
   const handleYesIntro = useCallback(() => {
     // Clear any stale session data from a previous session
@@ -413,40 +498,47 @@ export default function Home() {
                       {CONFIG.intro.yesLabel}
                     </motion.button>
 
-                    {/* No button — floats to screen corners */}
-                    <AnimatePresence mode="popLayout">
-                      {!noMounted ? (
-                        <motion.button
-                          key="no-initial"
-                          onClick={handleNoClick}
-                          onMouseEnter={handleNoHover}
-                          onTouchStart={(e) => { e.preventDefault(); handleNoHover(); }}
-                          className="cursor-pointer rounded-xl border-2 border-rose-200 bg-white/70 px-7 py-2.5 text-sm font-medium text-rose-400 transition-colors hover:border-rose-300 hover:bg-rose-50/50"
-                          initial={{ opacity: 1 }}
-                          exit={{ opacity: 0, scale: 0.5 }}
-                          whileTap={{ scale: 0.9 }}
-                        >
-                          {CONFIG.intro.noLabel} 🙅
-                        </motion.button>
-                      ) : (
-                        <motion.button
-                          key="no-floating"
-                          onClick={handleNoClick}
-                          onMouseEnter={handleNoHover}
-                          onTouchStart={(e) => { e.preventDefault(); handleNoHover(); }}
-                          className="fixed z-50 cursor-pointer rounded-xl border-2 border-rose-300 bg-white/90 px-7 py-2.5 text-sm font-medium text-rose-400 shadow-lg backdrop-blur-sm hover:border-rose-400"
-                          style={{ pointerEvents: "auto" }}
-                          initial={{ opacity: 0, scale: 0.5 }}
-                          animate={{ x: noPos.x, y: noPos.y, opacity: 1, scale: 1 }}
-                          transition={{ type: "spring", stiffness: 220, damping: 18 }}
-                          whileTap={{ scale: 0.9 }}
-                        >
-                          {CONFIG.intro.noLabel} 🙅
-                        </motion.button>
-                      )}
-                    </AnimatePresence>
+                    {/* No button — actively evades cursor */}
+                    <motion.button
+                      ref={noRef}
+                      onClick={handleNoClick}
+                      onMouseEnter={handleNoHover}
+                      onTouchStart={(e) => {
+                        e.preventDefault();
+                        handleNoHover();
+                      }}
+                      className="fixed z-50 cursor-pointer select-none rounded-xl border-2 border-rose-300 bg-white/90 px-8 py-3 text-base font-semibold text-rose-400 shadow-lg backdrop-blur-sm transition-colors hover:border-rose-400"
+                      style={{ left: 0, top: 0 }}
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{
+                        x: noPos.x,
+                        y: noPos.y,
+                        opacity: 1,
+                        scale: isWobbling ? [1, 1.03, 0.97, 1.02, 0.98, 1] : 1,
+                        rotate: isWobbling ? [0, -10, 10, -7, 7, -4, 4, -2, 2, 0] : 0,
+                      }}
+                      transition={{
+                        x: { type: "spring", stiffness: 160, damping: 13 },
+                        y: { type: "spring", stiffness: 160, damping: 13 },
+                        opacity: { duration: 0.3 },
+                        scale: {
+                          duration: 0.5,
+                          repeat: isWobbling ? Infinity : 0,
+                          ease: "easeInOut",
+                        },
+                        rotate: {
+                          duration: 0.5,
+                          repeat: isWobbling ? Infinity : 0,
+                          ease: "easeInOut",
+                        },
+                      }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      {CONFIG.intro.noLabel} 🙅
+                    </motion.button>
 
-                    {/* Dodge messages */}
+                    {/* Dodge messages — always on top of the floating No button */}
+                    <div className="relative z-[60]">
                     <AnimatePresence mode="wait">
                       {noAttempts > 0 && noAttempts <= CONFIG.intro.noDodgeMessages.length && (
                         <motion.p
@@ -470,6 +562,7 @@ export default function Home() {
                         </motion.p>
                       )}
                     </AnimatePresence>
+                    </div>
                   </div>
                 )}
               </motion.div>
